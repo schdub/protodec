@@ -1,0 +1,30 @@
+#include "version.h"
+
+1    VERSIONINFO
+FILEVERSION _VERSION_MAJOR_,_VERSION_MINOR_,_VERSION_BUILDS_,_VERSION_REVISION_
+PRODUCTVERSION _PRODVERSION_MAJOR_,_PRODVERSION_MINOR_,_PRODVERSION_BUILDS_,_PRODVERSION_REVISION_
+FILEOS 0x4
+FILETYPE 0x1
+FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+FILEFLAGS 0x9L
+#else
+FILEFLAGS 0x8L
+#endif
+{
+    BLOCK "StringFileInfo" {
+        BLOCK "040904B0" {
+            VALUE "FileDescription", _PROD_DESCRIPTION_
+            VALUE "CompanyName",    _ORGANIZATION_NAME_
+            VALUE "InternalName",   _PROD_NAME_ ".exe"
+            VALUE "LegalCopyright", _PROD_COPYRIGHT_
+            VALUE "ProductName",    _PROD_NAME_
+            VALUE "ProductVersion", _PRODVERSION_
+            VALUE "FileVersion",    _VERSION_
+        }
+    }
+
+    BLOCK "VarFileInfo" {
+        VALUE "Translation", 0x0409, 1200
+    }
+}

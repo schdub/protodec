@@ -5,6 +5,9 @@ CONFIG  -= qt
 win32 {
 RC_FILE += winres.rc
 }
-SOURCES += protodec.cpp
-#SOURCES += tests.cpp
-#LIBS += -lgtest -lpthread
+CONFIG(unittest) {
+  SOURCES += tests.cpp
+  LIBS += -lgtest -lpthread
+} else {
+  SOURCES += protodec.cpp
+}

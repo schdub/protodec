@@ -99,23 +99,36 @@ TEST(RawMessage, sizeInBytes) {
 }
 
 TEST(RawMessage, printing) {
-    {
-    unsigned char data[] = {
+    unsigned char d1[] = {
         0x0a, 0x05, '0', '1', '2', '3', '4',
         0x0a, 0x04, 'a', 'b', 'c', 'd',
         0x0a, 0x03, 'X', 'Y', 'Z'
     };
-    std::string expected = "1 [\n"
-                           "\t1: \"01234\"\n"
-                           "\t2: \"abcd\"\n"
-                           "\t3: \"XYZ\"\n"
-                           "]\n";
-    size_t len = (sizeof(data)/sizeof(*data));
-    std::stringstream ss;
-    RawMessage msg;
-    msg.parse(data, data + len);
-    msg.print(ss);
-    ASSERT_EQ(ss.str(), expected);
+    unsigned char d2[] = {
+        0x22,            // tag (field number 4, wire type 2)
+        0x06,            // payload size (6 bytes)
+        0x03,            // first element (varint 3)
+        0x8E, 0x02,      // second element (varint 270)
+        0x9E, 0xA7, 0x05 // third element (varint 86942)
+    };
+    unsigned char*  data[3] = { d1, d2};
+    unsigned     lengths[2] = { sizeof(d1), sizeof(d2)};
+    std::string expected[2] = {
+      "1 [\n"
+      "\t1: \"01234\"\n"
+      "\t2: \"abcd\"\n"
+      "\t3: \"XYZ\"\n"
+      "]\n",
+      "4: \"\x3\\142\x2\\158\\167\\005\"\n"
+    };
+    for (unsigned i = 0; i < sizeof(data)/sizeof(*data); ++i) {
+      size_t len = lengths[i];
+      std::stringstream ss;
+      RawMessage msg;
+      msg.parse(data[i], data[i] + len);
+      msg.print(ss);
+      const std::string & actual = ss.str();
+      ASSERT_EQ(actual, expected[i]);
     }
 }
 
@@ -171,6 +184,7 @@ TEST(Serialized_pb, find) {
 }
 
 TEST(Serialized_pb, grab) {
+    {
     RawMessage msg;
     char data[] = "\n\x11\x61\x64\x64ressbook.proto\x12\x08tutorial\"\xda\x01\n\x06Person\x12\x0c\n\x04name\x18\x01 \x02(\t\x12\n\n\x02id\x18\x02 \x02(\x05\x12\r\n\x05\x65mail\x18\x03 \x01(\t\x12+\n\x05phone\x18\x04 \x03(\x0b\x32\x1c.tutorial.Person.PhoneNumber\x1aM\n\x0bPhoneNumber\x12\x0e\n\x06number\x18\x01 \x02(\t\x12.\n\x04type\x18\x02 \x01(\x0e\x32\x1a.tutorial.Person.PhoneType:\x04HOME\"+\n\tPhoneType\x12\n\n\x06MOBILE\x10\x00\x12\x08\n\x04HOME\x10\x01\x12\x08\n\x04WORK\x10\x02\"/\n\x0b\x41\x64\x64ressBook\x12 \n\x06person\x18\x01 \x03(\x0b\x32\x10.tutorial.Person";
     size_t len = (sizeof(data)/sizeof(*data));
@@ -198,6 +212,24 @@ TEST(Serialized_pb, grab) {
                            "}\n";
     Serialized_pb::printMessagesFromSerialized(msg, ss);
     ASSERT_EQ(ss.str(), expected);
+    }{
+        unsigned char data[] = {
+            0x0a, 0x07, 't', '.', 'p', 'r', 'o', 't', 'o',
+            0x2a, 0x12, 0x0a, 0x06, 'D', 'o', 'm', 'a', 'i', 'n',
+            0x12, 0x08, 0x0a, 0x04, 'U', 'S', 'E', 'R',
+            0x10, 0x01
+        };
+        std::string expected = "enum Domain {\n"
+                               "\tUSER = 1;\n"
+                               "}\n";
+        size_t len = (sizeof(data)/sizeof(*data));
+        RawMessage msg;
+        ASSERT_TRUE(msg.parse((unsigned char*) data, (unsigned char*) data + len));
+        std::stringstream ss;
+        Serialized_pb::printMessagesFromSerialized(msg, ss, true);
+        const std::string & actual = ss.str();
+        ASSERT_EQ(actual, expected);
+    }
 }
 
 int main(int argc, char ** argv) {

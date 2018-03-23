@@ -1,6 +1,6 @@
 // ///////////////////////////////////////////////////////////////////////// //
 //                                                                           //
-//   Copyright (C) 2014-2017 by Oleg Polivets                                //
+//   Copyright (C) 2014-2018 by Oleg Polivets                                //
 //   jsbot@ya.ru                                                             //
 //                                                                           //
 //   This program is free software; you can redistribute it and/or modify    //
@@ -757,14 +757,21 @@ class Serialized_pb {
 
         // values
         const RawMessage::VariantPtr vaItem = map.at(2);
-        for (auto v : vaItem->asMap()) {
-            const RawMessage::KeyValueMap vit = v.second->asMap();
+        if (!vaItem->isRepeated()) {
             for (int i = 0; i <= indent; ++i) os << '\t';
+            const RawMessage::KeyValueMap vit = vaItem->asMap();
             os << vit.at(1)->asString().c_str() << " = "
                << vit.at(2)->asInt()            << ";"
                << std::endl;
+        } else {
+            for (auto v : vaItem->asMap()) {
+                const RawMessage::KeyValueMap vit = v.second->asMap();
+                for (int i = 0; i <= indent; ++i) os << '\t';
+                os << vit.at(1)->asString().c_str() << " = "
+                   << vit.at(2)->asInt()            << ";"
+                   << std::endl;
+            }
         }
-
         for (int i = 0; i < indent; ++i) os << '\t';
         os << '}' << std::endl;
     }
@@ -867,13 +874,15 @@ public:
         return count;
     }
 
-    static void printMessagesFromSerialized(const RawMessage & msg, std::ostream & os) {
-        if (!isSerializedMessages(msg)) {
+    static void printMessagesFromSerialized(const RawMessage & msg, std::ostream & os, bool force = false) {
+        if (!force && !isSerializedMessages(msg)) {
             return;
         }
         // package name
-        std::string packageName(msg.rootItem()->asMap()[2]->asString());
-        os << "package " << packageName.c_str() << ";" << std::endl;
+        if (msg.rootItem()->asMap().count(2)) {
+            std::string packageName(msg.rootItem()->asMap()[2]->asString());
+            os << "package " << packageName.c_str() << ";" << std::endl;
+        }
         // imports
         if (msg.rootItem()->asMap().count(3)) {
             const RawMessage::VariantPtr vaItem = msg.rootItem()->asMap().at(3);

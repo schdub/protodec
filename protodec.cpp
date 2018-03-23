@@ -1,6 +1,6 @@
 // ///////////////////////////////////////////////////////////////////////// //
 //                                                                           //
-//   Copyright (C) 2014-2017 by Oleg Polivets                                //
+//   Copyright (C) 2014-2018 by Oleg Polivets                                //
 //   jsbot@ya.ru                                                             //
 //                                                                           //
 //   This program is free software; you can redistribute it and/or modify    //

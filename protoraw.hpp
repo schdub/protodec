@@ -23,6 +23,7 @@
 #include <memory>
 #include <cassert>
 #include <sstream>
+#include <algorithm>
 
 class RawMessage {
 public:
@@ -863,10 +864,19 @@ public:
                 msg.print(std::cerr);
 #endif
                 std::string filename(msg.items().at(1)->asString());
+#if WIN32
+                std::replace(filename.begin(), filename.end(), '/', '\\');
+#endif
                 std::ofstream file(filename.c_str(), std::ios::binary);
-                printMessagesFromSerialized(msg, file);
-                std::cout << " [+] " << filename.c_str() << std::endl;
-                count += 1;
+                if (!file.is_open()) {
+                    std::cout << " [-] " << filename.c_str()
+                              << " ERROR: can't create file path!"
+                              << std::endl;
+                } else {
+                    printMessagesFromSerialized(msg, file);
+                    std::cout << " [+] " << filename.c_str() << std::endl;
+                    count += 1;
+                }
             }
             ptr = ept + 1;
             ept = ptrEnd;

@@ -24,6 +24,7 @@
 #include <cassert>
 #include <sstream>
 #include <algorithm>
+#include <stdexcept>
 
 class RawMessage {
 public:
@@ -32,6 +33,16 @@ public:
     typedef std::shared_ptr<Variant> VariantPtr;
     typedef std::map<unsigned, VariantPtr> KeyValueMap;
     friend std::ostream& operator<<(std::ostream & os, const Variant & var);
+
+    static const VariantPtr At(const KeyValueMap & map, unsigned k) {
+        KeyValueMap::const_iterator it = map.find(k);
+        if (it != map.end()) {
+            return it->second;
+        }
+        std::stringstream ss;
+        ss << "ERROR: Key '" << k << "' not found.";
+        throw std::logic_error(ss.str());
+    }
 
     VariantPtr rootItem() const {
         assert( mRoot );
@@ -714,11 +725,11 @@ class Serialized_pb {
         };
         static unsigned typesCount = sizeof(types) / sizeof(*types);
 
-        unsigned dataType = vit.at(5)->asInt();
+        unsigned dataType = RawMessage::At(vit, 5)->asInt();
         assert( dataType > 0 && dataType < typesCount );
         const bool isComplexType = (dataType == 11 || dataType == 14);
         const std::string & strDataType = isComplexType
-            ? vit.at(6)->asString() : types[dataType-1];
+            ? RawMessage::At(vit,6)->asString() : types[dataType-1];
 
         // label of current field
         static std::string labels[] = {
@@ -728,22 +739,22 @@ class Serialized_pb {
         };
         static unsigned labelsCount = sizeof(labels) / sizeof(*labels);
 
-        int label = vit.at(4)->asInt()-1;
+        int label = RawMessage::At(vit,4)->asInt()-1;
         assert(label < labelsCount);
         const std::string & strLabel = labels[label];
 
         std::string strDefault;
         if (vit.count(7)) {
             strDefault.append(" [default = ");
-                        strDefault.append(vit.at(7)->asString());
+                        strDefault.append(RawMessage::At(vit,7)->asString());
                         strDefault.append("]");
         }
 
         for (int i = 0; i < indent; ++i) os << '\t';
         os << strLabel.c_str()              << " "
            << strDataType.c_str()           << " "
-           << vit.at(1)->asString().c_str() << " = "
-           << vit.at(3)->asInt()
+           << RawMessage::At(vit,1)->asString().c_str() << " = "
+           << RawMessage::At(vit,3)->asInt()
            << strDefault.c_str()            << ";"
            << std::endl;
     }
@@ -754,23 +765,25 @@ class Serialized_pb {
         int indent = 0
     ) {
         for (int i = 0; i < indent; ++i) os << '\t';
-        os << "enum " << map.at(1)->asString().c_str() << " {" << std::endl;
+        os << "enum " << RawMessage::At(map,1)->asString().c_str() << " {" << std::endl;
 
         // values
-        const RawMessage::VariantPtr vaItem = map.at(2);
+        const RawMessage::VariantPtr vaItem = RawMessage::At(map,2);
         if (!vaItem->isRepeated()) {
             for (int i = 0; i <= indent; ++i) os << '\t';
             const RawMessage::KeyValueMap vit = vaItem->asMap();
-            os << vit.at(1)->asString().c_str() << " = "
-               << vit.at(2)->asInt()            << ";"
+            os << RawMessage::At(vit,1)->asString().c_str() << " = "
+               << RawMessage::At(vit,2)->asInt()            << ";"
                << std::endl;
         } else {
-            for (auto v : vaItem->asMap()) {
-                const RawMessage::KeyValueMap vit = v.second->asMap();
+            const RawMessage::KeyValueMap & v = vaItem->asMap();
+            for (RawMessage::KeyValueMap::const_iterator it = v.begin(); it != v.end(); ++it) {
+                const RawMessage::KeyValueMap & vit = it->second->asMap();
                 for (int i = 0; i <= indent; ++i) os << '\t';
-                os << vit.at(1)->asString().c_str() << " = "
-                   << vit.at(2)->asInt()            << ";"
+                os << RawMessage::At(vit,1)->asString().c_str() << " = "
+                   << RawMessage::At(vit,2)->asInt()            << ";"
                    << std::endl;
+
             }
         }
         for (int i = 0; i < indent; ++i) os << '\t';
@@ -786,40 +799,43 @@ class Serialized_pb {
         const RawMessage::KeyValueMap & map = var->asMap();
 
         for (int i = 0; i < indent; ++i) os << '\t';
-        os << "message " << map.at(1)->asString().c_str() << " {" << std::endl;
+        os << "message " << RawMessage::At(map,1)->asString().c_str() << " {" << std::endl;
 
         // enums
         if (var->hasField(4)) {
-            const RawMessage::VariantPtr vaItem = map.at(4);
+            const RawMessage::VariantPtr vaItem = RawMessage::At(map,4);
             if (vaItem->isMap()) {
                 printEnum(vaItem->asMap(), os, indent + 1);
             } else {
-                for (auto v : vaItem->asMap()) {
-                    printEnum(v.second->asMap(), os, indent + 1);
+                const RawMessage::KeyValueMap & m = vaItem->asMap();
+                for (RawMessage::KeyValueMap::const_iterator it = m.begin(); it != m.end(); ++it) {
+                    printEnum(it->second->asMap(), os, indent + 1);
                 }
             }
         }
 
         // sub messages
         if (var->hasField(3)) {
-            const RawMessage::VariantPtr vaItem = map.at(3);
+            const RawMessage::VariantPtr vaItem = RawMessage::At(map,3);
             if (vaItem->isMap()) {
                 printMessage(vaItem, os, indent + 1);
             } else {
-                for (auto v : vaItem->asMap()) {
-                    printMessage(v.second, os, indent + 1);
+                const RawMessage::KeyValueMap & m = vaItem->asMap();
+                for (RawMessage::KeyValueMap::const_iterator it = m.begin(); it != m.end(); ++it) {
+                    printMessage(it->second, os, indent + 1);
                 }
             }
         }
 
         // items of current message
         if (var->hasField(2)) {
-            const RawMessage::VariantPtr vaItem = map.at(2);
+            const RawMessage::VariantPtr vaItem = RawMessage::At(map,2);
             if (vaItem->isMap()) {
                 printField(vaItem->asMap(), os, indent + 1);
             } else {
-                for (auto v : vaItem->asMap()) {
-                    printField(v.second->asMap(), os, indent + 1);
+                const RawMessage::KeyValueMap & m = vaItem->asMap();
+                for (RawMessage::KeyValueMap::const_iterator it = m.begin(); it != m.end(); ++it) {
+                    printField(it->second->asMap(), os, indent + 1);
                 }
             }
         }
@@ -834,9 +850,9 @@ class Serialized_pb {
                  items.count(2) &&
                  items.count(4);
         if (f) {
-            f = items.at(1)->isString() &&
-                items.at(2)->isString() &&
-                (items.at(4)->isMap() || items.at(4)->isRepeated());
+            f = items[1]->isString() &&
+                items[2]->isString() &&
+                (items[4]->isMap() || items[4]->isRepeated());
         }
         return f;
     }
@@ -863,7 +879,7 @@ public:
 #if DEBUG
                 msg.print(std::cerr);
 #endif
-                std::string filename(msg.items().at(1)->asString());
+                std::string filename(msg.items()[1]->asString());
 #if WIN32
                 std::replace(filename.begin(), filename.end(), '/', '\\');
 #endif
@@ -895,34 +911,37 @@ public:
         }
         // imports
         if (msg.rootItem()->asMap().count(3)) {
-            const RawMessage::VariantPtr vaItem = msg.rootItem()->asMap().at(3);
-            if (vaItem->isRepeated()) {
-                for (auto v : vaItem->asMap()) {
-                    os << "import \"" << v.second->asString().c_str() << "\";\n";
-                }
-            } else {
+            const RawMessage::VariantPtr vaItem = msg.rootItem()->asMap()[3];
+            if (!vaItem->isRepeated()) {
                 os << "import \"" << vaItem->asString().c_str() << "\";\n";
+            } else {
+                const RawMessage::KeyValueMap & m = vaItem->asMap();
+                for (RawMessage::KeyValueMap::const_iterator it = m.begin(); it != m.end(); ++it) {
+                    os << "import \"" << it->second->asString().c_str() << "\";\n";
+                }
             }
         }
         // enums
         if (msg.rootItem()->asMap().count(5)) {
-            const RawMessage::VariantPtr vaItem = msg.rootItem()->asMap().at(5);
+            const RawMessage::VariantPtr vaItem = msg.rootItem()->asMap()[5];
             if (vaItem->isMap()) {
                 printEnum(vaItem->asMap(), os, 0);
             } else {
-                for (auto v : vaItem->asMap()) {
-                    printEnum(v.second->asMap(), os, 0);
+                const RawMessage::KeyValueMap & m = vaItem->asMap();
+                for (RawMessage::KeyValueMap::const_iterator it = m.begin(); it != m.end(); ++it) {
+                    printEnum(it->second->asMap(), os, 0);
                 }
             }
         }
         // messages
         if (msg.rootItem()->asMap().count(4)) {
-            const RawMessage::VariantPtr vaItem = msg.rootItem()->asMap().at(4);
+            const RawMessage::VariantPtr vaItem = msg.rootItem()->asMap()[4];
             if (vaItem->isMap()) {
                 printMessage(vaItem, os);
             } else {
-                for (auto v : vaItem->asMap()) {
-                    printMessage(v.second, os);
+                const RawMessage::KeyValueMap & m = vaItem->asMap();
+                for (RawMessage::KeyValueMap::const_iterator it = m.begin(); it != m.end(); ++it) {
+                    printMessage(it->second, os);
                 }
             }
         }

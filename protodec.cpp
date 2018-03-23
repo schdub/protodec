@@ -21,6 +21,7 @@
 #include <cstring>
 
 #include "protoraw.hpp"
+#include "version.h"
 
 void readFile(
     std::vector<unsigned char> & data,
@@ -54,7 +55,7 @@ struct CommandOptions {
 
     void usage() {
         std::cout
-            << "PROTObuf2 DECompiler v0.6 (c) Oleg V. Polivets, 2014-2017.\n"
+            << "PROTObuf2 DECompiler v" << _VERSION_ << " " << _PROD_COPYRIGHT_ "\n"
             << "Decompiles protobuf (version 2) messages.\n"
             << "\n"
             << "protodec [OPTIONS] path_to_file\n"

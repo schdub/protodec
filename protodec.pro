@@ -1,5 +1,6 @@
 TEMPLATE = app
-CONFIG  += console c++11
+CONFIG += console
+CONFIG += c++11
 #DEFINES += DEBUG
 #CONFIG  += unittest
 CONFIG  -= app_bundle

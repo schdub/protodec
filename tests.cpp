@@ -5,6 +5,21 @@
 #include <gtest/gtest.h>
 #include "protoraw.hpp"
 
+static void readFile(
+    std::vector<unsigned char> & data,
+    const char * filename
+) {
+    data.clear();
+    std::streampos fileSize;
+    std::ifstream file(filename, std::ios::binary);
+    if (!file.is_open()) return;
+    file.seekg(0, std::ios::end);
+    fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+    data.resize(fileSize);
+    file.read((char*)&data[0], fileSize);
+}
+
 ///*
 
 TEST(RawMessage, asciiString) {
@@ -111,7 +126,7 @@ TEST(RawMessage, printing) {
         0x8E, 0x02,      // second element (varint 270)
         0x9E, 0xA7, 0x05 // third element (varint 86942)
     };
-    unsigned char*  data[3] = { d1, d2};
+    unsigned char*  data[2] = { d1, d2};
     unsigned     lengths[2] = { sizeof(d1), sizeof(d2)};
     std::string expected[2] = {
       "1 [\n"
@@ -167,6 +182,47 @@ TEST(Schema, print) {
     ASSERT_TRUE(msg.parse(data, data + len));
     Schema::print(msg, ss);
     ASSERT_EQ(ss.str(), expected);
+    }{
+    int rc = 0;
+    std::string expected =
+        "package ProtodecMessages;\n"
+        "\n"
+        "message MSG1 {\n"
+        "\trequired string fld1 = 1;\n"
+        "\trequired int64 fld2 = 2;\n"
+        "}\n"
+        "\n"
+        "message MSG2 {\n"
+        "\trequired string fld1 = 1;\n"
+        "\trequired int64 fld2 = 2;\n"
+        "\trequired string fld3 = 3;\n"
+        "\trequired MSG1 fld4 = 4;\n"
+        "}\n"
+        "\n"
+        "message MSG3 {\n"
+        "\trequired MSG2 fld1 = 1;\n"
+        "}\n";
+
+    const char addressbook_dat_path[] = "addressbook.dat";
+    ::remove(addressbook_dat_path);
+    rc = system("protoc --python_out=. tests/addressbook.proto");
+    ASSERT_EQ(rc, 0);
+    rc = system("python tests/addressbook.py");
+    ASSERT_EQ(rc, 0);
+
+    std::vector<unsigned char> addressbook_raw;
+    readFile(addressbook_raw, addressbook_dat_path);
+    ASSERT_TRUE( addressbook_raw.size() > 0 );
+
+    RawMessage msg;
+    bool parsed = msg.parse(addressbook_raw.data(), addressbook_raw.data() + addressbook_raw.size());
+    ASSERT_TRUE(parsed);
+
+    std::stringstream ss;
+    Schema::print(msg, ss);
+    ASSERT_EQ(ss.str(), expected);
+
+    ::remove(addressbook_dat_path);
     }
 }
 

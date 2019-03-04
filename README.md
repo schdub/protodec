@@ -2,6 +2,8 @@ PROTObuf2 DECompiler
 ====================
 Decompiles protobuf (version 2) messages.
 
+https://habr.com/ru/post/321790/
+
 USAGE
 
     protodec [OPTIONS] path_to_file

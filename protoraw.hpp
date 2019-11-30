@@ -313,9 +313,9 @@ private:
     template<class T>
     static const T * readVarint(const T * beg, const T * end, int64_t & value) {
         int64_t temp = 0, cnt = 0;
-        for (value = 0; beg < end && cnt < 16; ++beg, ++cnt) {
+        for (value = 0; beg < end && cnt < 64; ++beg, cnt += 7) {
             //assert(cnt < 16);
-            temp += (*beg & 0x7f) << (cnt * 7);
+            temp += static_cast<int64_t>(*beg & 0x7f) << cnt;
             if (!(*beg & 0x80)) {
                 ++beg;
                 break;

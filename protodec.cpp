@@ -19,6 +19,7 @@
 #include <fstream>
 #include <vector>
 #include <cstring>
+#include <iterator>
 
 #include "protoraw.hpp"
 #include "version.h"
@@ -41,6 +42,7 @@ void readFile(
     file.seekg(0, std::ios::beg);
 
     // read the data:
+    fileSize += 2; // for 2 final zeroes
     data.resize(fileSize);
     file.read((char*)&data[0], fileSize);
 }
@@ -52,6 +54,7 @@ struct CommandOptions {
     bool         mPrint;
     bool         mSchema;
     bool         mShowUsage;
+    bool         mJava;
 
     void usage() {
         std::cout
@@ -65,6 +68,7 @@ struct CommandOptions {
             << "           .proto files from executable module .EXE or .DLL (.elf or .so).\n"
             << "--schema - preddict and print of the schema of given raw message.\n"
             << "--print  - print text reprisentation of single message.\n"
+            << "--java   - decrypt Java descriptor.\n"
             << "--help   - this output.\n"
             << std::endl;
     }
@@ -85,6 +89,8 @@ struct CommandOptions {
             } else if (!strcmp(argv[i], "--grab")) {
                 ++i;
                 mFilePath = (i < argc ? argv[i] : NULL);
+            } else if (!strcmp(argv[i], "--java")) {
+                mJava = true;
             } else {
                 mFilePath = argv[i];
             }
@@ -97,6 +103,23 @@ struct CommandOptions {
         if (mShowUsage) usage();
     }
 };
+
+inline
+unsigned char xdigit(unsigned char ch) {
+    if ('0' <= ch && ch <= '9') {
+        return ch - '0';
+    }
+    else if ('a' <= ch && ch <= 'f') {
+        return ch - 'a' + 10;
+    }
+    else if ('A' <= ch && ch <= 'F') {
+        return ch - 'A' + 10;
+    }
+    else {
+        std::cerr << "Unexpected hexadecimal digit " << ch << ".";
+        exit(EXIT_FAILURE);
+    }
+}
 
 // /////////////////////////////////////////////////////////////////// //
 
@@ -111,6 +134,65 @@ int main(int argc, char ** argv) {
                       << std::endl;
             return EXIT_FAILURE;
         }
+
+        if (cmdOptions.mJava) {
+            auto j = begin(data);
+            for (auto i = begin(data); i != end(data); ++j, ++i) {
+                if (*i != '\\') {
+                    if (i != j) {
+                        *j = *i;
+                    }
+                }
+                else {
+                    if (++i == end(data)) {
+                        std::cerr << "ERROR: unescaped backslash at the end of a string." << std::endl;
+                        return EXIT_FAILURE;
+                    }
+
+                    switch (*i) {
+                        case 'n':
+                            *j = '\n';
+                            break;
+                        case 't':
+                            *j = '\t';
+                            break;
+                        case 'r':
+                            *j = '\r';
+                            break;
+                        case '"':
+                        case '\\':
+                        case '\'':
+                            *j = *i;
+                            break;
+                        case 'u': {
+                            uint16_t val = 0;
+                            for (size_t k = 0; k != 4; ++k) {
+                                ++i;
+                                if (i == end(data)) {
+                                    std::cerr << "ERROR: not enough hexadecimal digits at the end of a string." << std::endl;
+                                    exit(EXIT_FAILURE);
+                                }
+                                val <<= 4;
+                                val |= xdigit(*i);
+                            }
+                            if (val > 0xff) {
+                                std::cerr << "ERROR: unexpected escaped symbol at pos 0x" << std::hex << std::distance(begin(data), i) << " (0x" << val << std::dec << ")." << std::endl;
+                                exit(EXIT_FAILURE);
+                            }
+                            *j = val;
+                            break;
+                        }
+                        default:
+                            std::cerr << "ERROR: unknown escape sequence: \\" << *i << "." << std::endl;
+                            exit(EXIT_FAILURE);
+                    }
+                }
+            }
+            if (j != end(data)) {
+                data.erase(j, end(data));
+            }
+        }
+
         data.push_back('\0');
         data.push_back('\0');
 

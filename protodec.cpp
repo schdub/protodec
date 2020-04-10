@@ -78,6 +78,7 @@ struct CommandOptions {
         , mPrint(false)
         , mSchema(false)
         , mShowUsage(false)
+        , mJava(false)
     {
         for (int i = 1; i < argc; ++i) {
             if (!strcmp(argv[i], "--help")) {

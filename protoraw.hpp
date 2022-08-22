@@ -311,12 +311,15 @@ private:
     }
 
     template<class T>
-    static const T * readVarint(const T * beg, const T * end, int64_t & value) {
+    static const T * readVarint(const T * beg, const T * end, int64_t & value, bool * ok = nullptr) {
         int64_t temp = 0, cnt = 0;
         for (value = 0; beg < end && cnt < 64; ++beg, cnt += 7) {
             //assert(cnt < 16);
             temp += static_cast<int64_t>(*beg & 0x7f) << cnt;
             if (!(*beg & 0x80)) {
+                if (ok) {
+                    *ok = true;
+                }
                 ++beg;
                 break;
             }
@@ -552,6 +555,36 @@ private:
 
                         bool isString = itsAsciiString(p, p + intValue);
                         if (isString || !isValidMessage(p, p + intValue)) {
+                            if (!isString) {
+                                // is it possible that this is a packed repeated items: lets check this out
+                                std::vector<int64_t> packed_items;
+                                bool ok = false;
+                                auto prev_p = p;
+                                while (p < e) {
+                                    int64_t temp{};
+                                    ok = false;
+                                    p = readVarint(p, e, temp, &ok);
+                                    if (!ok) {
+                                        break;
+                                    }
+                                    packed_items.push_back(temp);
+                                }
+                                // something went wrong return back starting pointer
+                                if (!ok || packed_items.empty()) {
+                                    p = prev_p;
+                                } else {
+                                    // this is actualy looks like repeated field
+                                    auto pRepeated = Variant::makeRepeated();
+                                    auto & ref_map = pRepeated->asMap();
+                                    size_t counter{};
+                                    for (auto temp : packed_items) {
+                                        ref_map[++counter] = Variant::make(temp);
+                                    }
+                                    mapInsert(idx, *currentMap,  pRepeated);
+                                    continue;
+                                }
+                            }
+
                             // ascii string or buffer
                             VariantPtr newString(Variant::make((char*)p, intValue));
 #if DEBUG

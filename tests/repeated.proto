@@ -1,0 +1,9 @@
+syntax = "proto2";
+
+message RepeatedPacked {
+  repeated int32 d = 4 [packed=true];
+}
+
+message RepeatedNotPacked {
+  repeated int32 d = 4;
+}

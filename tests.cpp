@@ -90,6 +90,54 @@ TEST(RawMessage, parsing) {
     }
 }
 
+TEST(RawMessage, parsePacked) {
+
+    const int FIELD_NUMBER = 4;
+
+    {
+    unsigned char data[] = {
+        0x22, 0x06, 0x03, 0x8e, 0x02, 0x9e, 0xa7, 0x05
+    };
+    size_t len = (sizeof(data)/sizeof(*data));
+    RawMessage msg;
+    msg.parse(data, data + len);
+    ASSERT_EQ(msg.items().size(), 1);
+    ASSERT_EQ(msg.items().count(FIELD_NUMBER), 1);
+    auto repeated_field = msg.items().at(FIELD_NUMBER)->asMap();
+    ASSERT_EQ(repeated_field.size(), 3);
+    ASSERT_EQ(repeated_field.at(1)->asInt(), 3);
+    ASSERT_EQ(repeated_field.at(2)->asInt(), 270);
+    ASSERT_EQ(repeated_field.at(3)->asInt(), 86942);
+    }
+
+    {
+    unsigned char data[] = {
+        0x22, 0x06, 'T', 'e', 'x', 'x', 'x', 't'
+    };
+    size_t len = (sizeof(data)/sizeof(*data));
+    RawMessage msg;
+    msg.parse(data, data + len);
+    ASSERT_EQ(msg.items().size(), 1);
+    ASSERT_EQ(msg.items().count(FIELD_NUMBER), 1);
+    auto field_string = msg.items().at(FIELD_NUMBER);
+    ASSERT_EQ(field_string->isString(), true);
+    ASSERT_EQ(field_string->asString(), "Texxxt");
+    }
+
+    {
+    unsigned char data[] = {
+        0x22, 0x06, 0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD
+    };
+    size_t len = (sizeof(data)/sizeof(*data));
+    RawMessage msg;
+    msg.parse(data, data + len);
+    ASSERT_EQ(msg.items().size(), 1);
+    ASSERT_EQ(msg.items().count(FIELD_NUMBER), 1);
+    auto field_string = msg.items().at(FIELD_NUMBER);
+    ASSERT_EQ(field_string->isString(), true);
+    }
+}
+
 TEST(RawMessage, sizeInBytes) {
     {
     unsigned char data[] = {
@@ -134,7 +182,7 @@ TEST(RawMessage, printing) {
       "\t2: \"abcd\"\n"
       "\t3: \"XYZ\"\n"
       "]\n",
-      "4: \"\x3\\142\x2\\158\\167\\005\"\n"
+      "4 [\n\t1: 3\n\t2: 270\n\t3: 86942\n]\n"
     };
     for (unsigned i = 0; i < sizeof(data)/sizeof(*data); ++i) {
       size_t len = lengths[i];

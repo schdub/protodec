@@ -207,7 +207,7 @@ TEST(Schema, print) {
     ::remove(addressbook_dat_path);
     rc = system("protoc --python_out=. tests/addressbook.proto");
     ASSERT_EQ(rc, 0);
-    rc = system("python tests/addressbook.py");
+    rc = system("python3 tests/addressbook.py");
     ASSERT_EQ(rc, 0);
 
     std::vector<unsigned char> addressbook_raw;

@@ -21,8 +21,12 @@ Building
 
 Regular binary:
 
-    qmake && make
+```shell
+qmake && make
+```
 
 Unit tests:
 
-    qmake "CONFIG += unittest" && make
+```shell
+qmake "CONFIG += unittest" && make
+```

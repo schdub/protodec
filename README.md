@@ -12,8 +12,8 @@ OPTIONS
 
     --grab   - find and grab FileDescriptor data with meta information about
               .proto files from executable module .EXE or .DLL (.elf or .so).
-    --schema - preddict and print of the schema of given raw message.
-    --print  - print text reprisentation of single message.
+    --schema - predict and print the schema of given raw message.
+    --print  - print text representation of single message.
     --help   - this output.
 
 Building
@@ -23,6 +23,6 @@ Regular binary:
 
     qmake && make
 
-Unittests:
+Unit tests:
 
     qmake "CONFIG += unittest" && make
